@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import Emulator from './Emulator';
+import Interpreter from './Interpreter';
 import './Game.css';
 
-let emulator = new Emulator();
+let interp = new Interpreter();
 
 export default function Screen({ height, width }) {
     const canvasRef = useRef(null);
@@ -12,7 +12,7 @@ export default function Screen({ height, width }) {
 	if(ctx != null) {
 	    const delay = Math.round(1000);
 	    const interval = setInterval(() => {
-		emulator.tick(ctx);
+		interp.tick(ctx);
 	    }, delay);
 
 	    return () => clearInterval(interval);
