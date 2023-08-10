@@ -5,9 +5,9 @@ export default function Header() {
     return (
 	<>
 	    <header>
-		<nav class="navBar">
+		<nav className="navBar">
 		    <h1>Chip8 Interpreter</h1>
-		    <a href="" class="githubLink">Github</a>
+		    <a href="https://github.com/beersonthewall" className="githubLink">Github</a>
 		</nav>
 	    </header>
 	</>
