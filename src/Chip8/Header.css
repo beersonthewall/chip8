@@ -1,0 +1,8 @@
+header {
+    width: 100%;
+}
+
+.navBar {
+    display: flex;
+    flex-direction: row;
+}
