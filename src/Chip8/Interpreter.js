@@ -250,11 +250,17 @@ export default class Interpreter {
 	case 0xE: {
 	    let lower = op & 0xFF;
 	    if(lower === 0x9E) {
-		// EX9E
-		
+		// EX9E: skip next instruction if key in Vx is pressed
+		let x = (op >> 8) & 0xF;
+		if(this.registers[x] === this.input.pollKey()) {
+		    this.pc += 2;
+		}
 	    } else if(lower === 0xA1) {
-		// EXA1
-		
+		// EXA1: skip next instruction if key in Vx is not pressed
+		let x = (op >> 8) & 0xF;
+		if(this.registers[x] !== this.input.pollKey()) {
+		    this.pc += 2;
+		}
 	    }
 	    break;
 	}
@@ -271,15 +277,17 @@ export default class Interpreter {
 		    this.waitingForKeyPress = true;
 		}
 	    } else if(lower === 0x15) {
+		// FX15: Timer
 		this.delay_timer = this.registers[x];
 	    } else if(lower === 0x18) {
+		// FX18: Sound
 		this.sound_timer = this.registers[x];
 	    } else if(lower === 0x1E) {
+		// FX1E
 		this.i += this.registers[x];
 	    } else if(lower === 0x29) {
-		
+		// FX29: MEM
 	    } else if(lower === 0x33) {
-		
 		// FX33: BCD - binary coded decimal
 		let x = (op >> 8) & 0xF;
 		let num = this.registers[x];
