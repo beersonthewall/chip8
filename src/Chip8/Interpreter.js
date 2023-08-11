@@ -2,7 +2,7 @@ const CHIP8_MEM_SZ = 4 * 1024;
 const STACK_SZ = 16;
 const SCREEN_HEIGHT = 32;
 const SCREEN_WIDTH = 64;
-const DEBUG = true;
+const DEBUG = false;
 
 export default class Interpreter {
     constructor() {
@@ -52,6 +52,8 @@ export default class Interpreter {
 	console.assert(y_scale, x_scale);
 	this.scale = x_scale;
 	this.memory = new Uint8Array(CHIP8_MEM_SZ);
+	this.registers = new Uint8Array(16);
+	this.screen = this._screen();
 	this.pc = 0;
 	this.sp = 0;
 	this.I = 0;
