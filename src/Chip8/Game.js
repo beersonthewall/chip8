@@ -30,7 +30,7 @@ export default function Game({ height, width }) {
 		last += (Date.now()-last);
 		if(interp.hlt) return;
 		for(let k = 0; origin < last-frameTime && k < 2; origin+=frameTime,k++) {
-		    let tickrate = 20;
+		    let tickrate = 7;
 		    for(let z = 0; z < tickrate && !interp.waiting; z++) {
 			interp.tick(ctx);
 		    }
