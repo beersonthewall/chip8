@@ -8,15 +8,35 @@ let interp = new Interpreter();
 export default function Game({ height, width }) {
     const canvasRef = useRef(null);
 
+    const keydown = (e) => {
+	interp.pressKey(e.key);
+	e.preventDefault();
+    };
+    const keyup = (e) => {
+	interp.liftKey(e.key);
+	e.preventDefault();
+    };
+
+    document.addEventListener('keydown', keydown);
+    document.addEventListener('keyup', keyup);
+    
     useEffect(() => {
 	const ctx = canvasRef.current?.getContext("2d");
 	if(ctx != null) {
-	    const delay = Math.round(16);
-	    const interval = setInterval(() => {
-		interp.tick(ctx);
-	    }, delay);
-
-	    return () => clearInterval(interval);
+	    const frameTime = 1000/60;
+	    let last = Date.now();
+	    let origin = last + frameTime/2;
+	    setInterval(_ => {
+		last += (Date.now()-last);
+		if(interp.hlt) return;
+		for(let k = 0; origin < last-frameTime && k < 2; origin+=frameTime,k++) {
+		    let tickrate = 20;
+		    for(let z = 0; z < tickrate && !interp.waiting; z++) {
+			interp.tick(ctx);
+		    }
+		    interp.timerTick();
+		}
+	    }, frameTime);
 	}
     });
 
@@ -26,7 +46,6 @@ export default function Game({ height, width }) {
 	let reader = new FileReader();
 	reader.onload = () => {
 	    const ctx = canvasRef.current?.getContext("2d");
-	    console.log("lad");
 	    if(ctx) {
 		interp.reset(ctx);
 	    }

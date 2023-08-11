@@ -2,7 +2,26 @@ const CHIP8_MEM_SZ = 4 * 1024;
 const STACK_SZ = 16;
 const SCREEN_HEIGHT = 32;
 const SCREEN_WIDTH = 64;
-const DEBUG = true;
+const DEBUG = false;
+
+const keyIndex = {
+    '1': 0,
+    '2': 1,
+    '3': 2,
+    '4': 3,
+    'q': 4,
+    'w': 5,
+    'e': 6,
+    'r': 7,
+    'a': 8,
+    's': 9,
+    'd': 10,
+    'f': 11,
+    'z': 12,
+    'x': 13,
+    'c': 14,
+    'v': 15,
+};
 
 export default class Interpreter {
     constructor() {
@@ -17,12 +36,39 @@ export default class Interpreter {
 	this.sp = 0;
 	this.delay_timer = 0;
 	this.sound_timer = 0;
-	this.input = new Input();
 	this.screen = this._screen();
 	this.scale = 1;
-	this.waitingForKeyPress = false;
 	this.hlt = false;
 	this.I = 0;
+	this.keymap = {
+	    '1': false,
+	    '2': false,
+	    '3': false,
+	    '4': false,
+	    'q': false,
+	    'w': false,
+	    'e': false,
+	    'r': false,
+	    'a': false,
+	    's': false,
+	    'd': false,
+	    'f': false,
+	    'z': false,
+	    'x': false,
+	    'c': false,
+	    'v': false,
+	};
+	this.waiting = null;
+    }
+
+    timerTick() {
+	if(this.delay_timer > 0) {
+	    this.delay_timer -= 1;
+	}
+	if(this.sound_timer > 0) {
+	    this.sound_timer -= 1;
+	    // TODO make sound
+	}
     }
 
     _screen() {
@@ -45,6 +91,22 @@ export default class Interpreter {
 	this.pc = 0x200;
     }
 
+    pressKey(key) {
+	if(key in this.keymap) {
+	    this.keymap[key] = true;
+	    if(this.waiting) {
+		this.registers[this.waiting] = keyIndex[key];
+		this.waiting = null;
+	    }
+	}
+    }
+
+    liftKey(key) {
+	if(key in this.keymap) {
+	    this.keymap[key] = false;
+	}
+    }
+
     reset(ctx) {
 	let canvas = ctx.canvas;
 	let height = ctx.canvas.height;
@@ -62,6 +124,25 @@ export default class Interpreter {
 	ctx.fillStyle = 'black';
 	ctx.fillRect(0, 0, width, height);
 	this.debug_line = "";
+	this.keymap = {
+	    '1': false,
+	    '2': false,
+	    '3': false,
+	    '4': false,
+	    'q': false,
+	    'w': false,
+	    'e': false,
+	    'r': false,
+	    'a': false,
+	    's': false,
+	    'd': false,
+	    'f': false,
+	    'z': false,
+	    'x': false,
+	    'c': false,
+	    'v': false,
+	};
+	this.waiting = null;
     }
 
     _storeKey(opcode, key) {
@@ -81,24 +162,6 @@ export default class Interpreter {
 	    throw new Error("PC out of bounds");
 	}
 
-	if(this.waitingForKeyPress && !this.input.pollKey()) {
-	    return;
-	} else if(this.waitingForKeyPress && this.input.pollKey()) {
-	    // dec pc to retrieve wait key instruction
-	    this.pc -= 2;
-	    let op = this.readOpcode();
-	    this._storeKey(op, this.input.key());
-	    this.waitingForKeyPress = false;
-	}
-
-	if(this.delay_timer) {
-	    this.delay_timer -= 1;
-	}
-
-	if(this.sound_timer) {
-	    this.sound_timer -= 1;
-	}
-
 	const op = this.readOpcode();
 	const upperNibble = (op >> 12) & 0xf;
 	switch(upperNibble) {
@@ -111,12 +174,11 @@ export default class Interpreter {
 	    } else if(op === 0x00EE) {
 		// 00EE: return from subroutine
 		this.sp -= 1;
-		if(this.sp < 0 || this.sp > STACK_SZ) {
+		if(this.sp < 0 || this.sp >= STACK_SZ) {
 		    this.htl = true;
 		    throw new Error("Stack overflow/underflow");
 		}
 		this.pc = this.stack[this.sp];
-		console.log(`POP ${this.pc.toString(16)}`);
 	    } else {
 		// 0NNN: Call machine code routine
 		this.stack[this.sp] = this.pc;
@@ -131,7 +193,6 @@ export default class Interpreter {
 	    break;
 	case 0x2:
 	    // 2NNN: call subroutine at NNN
-	    console.log(`PUSH ${this.pc.toString(16)}`);
 	    this.stack[this.sp] = this.pc;
 	    this.sp += 1;
 	    this.pc = op & 0xFFF;
@@ -275,13 +336,13 @@ export default class Interpreter {
 	    if(lower === 0x9E) {
 		// EX9E: skip next instruction if key in Vx is pressed
 		let x = (op >> 8) & 0xF;
-		if(this.registers[x] === this.input.pollKey()) {
+		if(this.keymap[this.registers[x]]) {
 		    this.pc += 2;
 		}
 	    } else if(lower === 0xA1) {
 		// EXA1: skip next instruction if key in Vx is not pressed
 		let x = (op >> 8) & 0xF;
-		if(this.registers[x] !== this.input.pollKey()) {
+		if(!this.keymap[this.registers[x]]) {
 		    this.pc += 2;
 		}
 	    }
@@ -294,11 +355,7 @@ export default class Interpreter {
 		this.registers[x] = this.delay_timer;
 	    } else if(lower === 0x0A) {
 		// FX0A: block for key press
-		if(this.input.pollKey()) {
-		    this._storeKey(op, this.input.key());
-		} else {
-		    this.waitingForKeyPress = true;
-		}
+		this.waiting = x;
 	    } else if(lower === 0x15) {
 		// FX15: Timer
 		this.delay_timer = this.registers[x];
@@ -367,7 +424,7 @@ export default class Interpreter {
 		registers += `V${i.toString(16)}: ${this.registers[i].toString(16)} `
 	    }
 	    let key = this.input.pollKey() ? this.input.pollKey() : "n/a";
-	    console.log(`0x${op.toString(16)} pc: ${this.pc.toString(16)}, sp: ${this.sp.toString(16)} I: ${this.I.toString(16)}, ${registers} wk: ${this.waitForKeyPressed}, kp: ${key}`);
+	    console.log(`0x${op.toString(16)} pc: ${this.pc.toString(16)}, sp: ${this.sp.toString(16)} I: ${this.I.toString(16)}, ${registers}, kp: ${key}`);
 	    this.debug_line = "";
 	}
     }
@@ -417,31 +474,5 @@ export default class Interpreter {
 	const lsb = this.memory[this.pc + 1];
 	this.pc += 2;
 	return (msb << 8) | lsb;
-    }
-}
-
-const keys = ['1', '2', '3', 'q', 'w', 'e', 'a', 's', 'd', 'z', 'x', 'c'];
-
-class Input {
-    constructor() {
-	this.keyPressed = undefined;
-	document.addEventListener('keydown', (e) => {
-	    let index = keys.indexOf(e.key);
-	    if(index > -1)
-		this.keyPressed = index;
-	});
-	document.addEventListener('keyup', (e) => {
-	    this.keyPressed = undefined;
-	});
-    }
-
-    key() {
-	let key = this.keyPressed;
-	this.keyPressed = undefined;
-	return key;
-    }
-
-    pollKey() {
-	return this.keyPressed;
     }
 }
