@@ -194,30 +194,29 @@ export default class Interpreter {
 		this.registers[x] ^= this.registers[y];
 	    } else if(lsn === 4) {
 		// 8XY4
-		if(255 - this.registers[y] < x) {
-		    this.registers[0xF] = 1;
-		} else {
-		    this.registers[0xF] = 0;
-		}
+		let vf = this.registers[y] + this.registers[x] > 0xFF ? 1 : 0;
 		this.registers[x] += this.registers[y];
+		this.registers[0xF] = vf;
 	    } else if(lsn === 5) {
 		// 8XY5
-		if(y > x) {
-		    this.registers[0xF] = 0;
-		} else {
-		    this.registers[0xF] = 1;
-		}
+		let vf = this.registers[x] > this.registers[y] ? 1 : 0;
 		this.registers[x] -= this.registers[y];
+		this.registers[0xF] = vf;
 	    } else if(lsn === 6) {
 		// 8XY6
-		this.registers[0xF] = this.registers[x] & 1;
+		let vf = this.registers[x] & 1;
 		this.registers[x] >>= 1;
+		this.registers[0xF] = vf;
 	    } else if(lsn === 7) {
 		// 8XY7
+		let vf = this.registers[x] > this.registers[y] ? 0 : 1;
 		this.registers[x] = this.registers[y] - this.registers[x];
+		this.registers[0xF] = vf;
 	    } else if(lsn === 0xE) {
 		// 8XYE
+		let vf = this.registers[x] >> 7;
 		this.registers[x] <<= 1
+		this.registers[0xF] = vf;
 	    }
 	    break;
 	}
