@@ -2,7 +2,7 @@ const CHIP8_MEM_SZ = 4 * 1024;
 const STACK_SZ = 16;
 const SCREEN_HEIGHT = 32;
 const SCREEN_WIDTH = 64;
-const DEBUG = false;
+const DEBUG = true;
 
 export default class Interpreter {
     constructor() {
@@ -11,7 +11,7 @@ export default class Interpreter {
 	// unclear if there's a standard memory map that programs
 	// would know to avoid overwriting. Perhaps the 'low memory'
 	// below 0x200?
-	this.stack = new Uint8Array(STACK_SZ);
+	this.stack = new Uint16Array(STACK_SZ);
 	this.registers = new Uint8Array(16);
 	this.pc = 0x200;
 	this.sp = 0;
@@ -21,6 +21,8 @@ export default class Interpreter {
 	this.screen = this._screen();
 	this.scale = 1;
 	this.waitingForKeyPress = false;
+	this.hlt = false;
+	this.I = 0;
     }
 
     _screen() {
@@ -73,7 +75,9 @@ export default class Interpreter {
        ctx - CanvasRenderingContext2D, used for drawing to the html canvas
      */
     tick(ctx) {
+	if(this.hlt) return;
 	if(this.pc >= CHIP8_MEM_SZ) {
+	    this.hlt = true;
 	    throw new Error("PC out of bounds");
 	}
 
@@ -108,9 +112,11 @@ export default class Interpreter {
 		// 00EE: return from subroutine
 		this.sp -= 1;
 		if(this.sp < 0 || this.sp > STACK_SZ) {
+		    this.htl = true;
 		    throw new Error("Stack overflow/underflow");
 		}
 		this.pc = this.stack[this.sp];
+		console.log(`POP ${this.pc.toString(16)}`);
 	    } else {
 		// 0NNN: Call machine code routine
 		this.stack[this.sp] = this.pc;
@@ -125,6 +131,7 @@ export default class Interpreter {
 	    break;
 	case 0x2:
 	    // 2NNN: call subroutine at NNN
+	    console.log(`PUSH ${this.pc.toString(16)}`);
 	    this.stack[this.sp] = this.pc;
 	    this.sp += 1;
 	    this.pc = op & 0xFFF;
@@ -301,36 +308,54 @@ export default class Interpreter {
 		this.sound_timer = this.registers[x];
 	    } else if(lower === 0x1E) {
 		// FX1E
-		this.i += this.registers[x];
+		this.I += this.registers[x];
 	    } else if(lower === 0x29) {
 		// FX29: MEM
 	    } else if(lower === 0x33) {
 		// FX33: BCD - binary coded decimal
+		if(this.I > 4093) {
+		    this.hlt = true;
+		    throw new Error("BCD I out of bounds");
+		}
+
 		let x = (op >> 8) & 0xF;
 		let num = this.registers[x];
-		let addr = this.I + 2;
-		while(num && addr != this.I) {
-		    this.memory[addr] = num % 10;
-		    num = Math.floor(num / 10);
-		    addr -= 1;
-		}
+		const a = Math.floor(num / 100);
+		num = num - a * 100;
+		const b = Math.floor(num / 10);
+		num = num - b * 10;
+		const c = Math.floor(num);
+
+		this.memory[this.I] = a;
+		this.memory[this.I + 1] = b;
+		this.memory[this.I + 2] = c;
+
 	    } else if(lower === 0x55) {
 		// FX55: dump registers to memory
-		let addr = this.I;
-		for(let i = 0; i < 0xF; i++) {
-		    this.memory[addr] = this.registers[i];
-		    addr += 1;
+		if(this.I > 4095 - x) {
+		    this.htl = true;
+		    throw new Error("load reg memory out of bounds");
+		}
+		for(let i = 0; i <= x; i++) {
+		    this.memory[this.I + i] = this.registers[i];
 		}
 	    } else if(lower === 0x65) {
 		// FX65: load registers from memory
-		let addr = this.I;
-		for(let i = 0; i < 0xF; i++) {
-		    this.registers[i] = this.memory[addr];
-		    addr += 1;
+		if(this.I > 4095 - x) {
+		    this.htl = true;
+		    throw new Error("load reg memory out of bounds");
+		}
+
+		for(let i = 0; i <= x; i++) {
+		    this.registers[i] = this.memory[this.I + i];
 		}
 	    }
 	    break;
 	}
+	default:
+	    this.htl = true;
+	    throw new Error("Illegal instruction");
+	    break;
 	}
 
 	this._logDebugMsg(op);
@@ -343,7 +368,7 @@ export default class Interpreter {
 		registers += `V${i.toString(16)}: ${this.registers[i].toString(16)} `
 	    }
 	    let key = this.input.pollKey() ? this.input.pollKey() : "n/a";
-	    console.log(`0x${op.toString(16)} ${this.debug_line}: pc: ${this.pc.toString(16)}, sp: ${this.sp.toString(16)} ${registers} wk: ${this.waitForKeyPressed}, kp: ${key}`);
+	    console.log(`0x${op.toString(16)} pc: ${this.pc.toString(16)}, sp: ${this.sp.toString(16)} I: ${this.I.toString(16)}, ${registers} wk: ${this.waitForKeyPressed}, kp: ${key}`);
 	    this.debug_line = "";
 	}
     }
