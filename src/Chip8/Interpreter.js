@@ -2,6 +2,7 @@ const CHIP8_MEM_SZ = 4 * 1024;
 const STACK_SZ = 16;
 const SCREEN_HEIGHT = 32;
 const SCREEN_WIDTH = 64;
+const DEBUG = true;
 
 export default class Interpreter {
     constructor() {
@@ -56,6 +57,7 @@ export default class Interpreter {
 	this.I = 0;
 	ctx.fillStyle = 'black';
 	ctx.fillRect(0, 0, width, height);
+	this.debug_line = "";
     }
 
     _storeKey(opcode, key) {
@@ -83,8 +85,15 @@ export default class Interpreter {
 	    this.waitingForKeyPress = false;
 	}
 
+	if(this.delay_timer) {
+	    this.delay_timer -= 1;
+	}
+
+	if(this.sound_timer) {
+	    this.sound_timer -= 1;
+	}
+
 	const op = this.readOpcode();
-	console.log(op);
 	const upperNibble = (op >> 12) & 0xf;
 	switch(upperNibble) {
 	case 0x0: {
@@ -184,6 +193,11 @@ export default class Interpreter {
 		this.registers[x] += this.registers[y];
 	    } else if(lsn === 5) {
 		// 8XY5
+		if(y > x) {
+		    this.registers[0xF] = 0;
+		} else {
+		    this.registers[0xF] = 1;
+		}
 		this.registers[x] -= this.registers[y];
 	    } else if(lsn === 6) {
 		// 8XY6
@@ -199,6 +213,7 @@ export default class Interpreter {
 	    break;
 	}
 	case 0x9: {
+	    // 9XY0
 	    let lsn = op & 0xF;
 	    console.assert(0, lsn);
 
@@ -303,7 +318,7 @@ export default class Interpreter {
 		for(let i = 0; i < 0xF; i++) {
 		    this.memory[addr] = this.registers[i];
 		    addr += 1;
-		}		
+		}
 	    } else if(lower === 0x65) {
 		// FX65: load registers from memory
 		let addr = this.I;
@@ -314,6 +329,26 @@ export default class Interpreter {
 	    }
 	    break;
 	}
+	}
+
+	this._logDebugMsg(op);
+    }
+
+    _logDebugMsg(op) {
+	if(DEBUG) {
+	    let registers = "";
+	    for(let i = 0; i <= 0xF; i++) {
+		registers += `V${i.toString(16)}: ${this.registers[i].toString(16)} `
+	    }
+	    let key = this.input.pollKey() ? this.input.pollKey() : "n/a";
+	    console.log(`0x${op.toString(16)} ${this.debug_line}: pc: ${this.pc.toString(16)}, sp: ${this.sp.toString(16)} ${registers} wk: ${this.waitForKeyPressed}, kp: ${key}`);
+	    this.debug_line = "";
+	}
+    }
+
+    _dbg(msg) {
+	if(DEBUG) {
+	    this.debug_line += msg;
 	}
     }
 
