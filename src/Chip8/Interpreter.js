@@ -280,6 +280,15 @@ export default class Interpreter {
 		
 	    } else if(lower === 0x33) {
 		
+		// FX33: BCD - binary coded decimal
+		let x = (op >> 8) & 0xF;
+		let num = this.registers[x];
+		let addr = this.I + 2;
+		while(num && addr != this.I) {
+		    this.memory[addr] = num % 10;
+		    num = Math.floor(num / 10);
+		    addr -= 1;
+		}
 	    } else if(lower === 0x55) {
 		// FX55: dump registers to memory
 		let addr = this.I;
