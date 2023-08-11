@@ -2,7 +2,6 @@ const CHIP8_MEM_SZ = 4 * 1024;
 const STACK_SZ = 16;
 const SCREEN_HEIGHT = 32;
 const SCREEN_WIDTH = 64;
-const SCREEN_SCALE = 10;
 
 export default class Interpreter {
     constructor() {
@@ -19,6 +18,7 @@ export default class Interpreter {
 	this.sound_timer = 0;
 	this.input = new Input();
 	this.screen = this._screen();
+	this.scale = 1;
     }
 
     _screen() {
@@ -42,12 +42,19 @@ export default class Interpreter {
     }
 
     reset(ctx) {
+	let canvas = ctx.canvas;
+	let height = ctx.canvas.height;
+	let width = ctx.canvas.width;
+	let y_scale = Math.floor(height / SCREEN_HEIGHT);
+	let x_scale = Math.floor(width / SCREEN_WIDTH);
+	console.assert(y_scale, x_scale);
+	this.scale = x_scale;
 	this.memory = new Uint8Array(CHIP8_MEM_SZ);
 	this.pc = 0;
 	this.sp = 0;
 	this.I = 0;
 	ctx.fillStyle = 'black';
-	ctx.fillRect(0, 0, 500, 500);
+	ctx.fillRect(0, 0, width, height);
     }
 
     /**
@@ -279,18 +286,18 @@ export default class Interpreter {
 	if(this.screen[y][x]) {
 	    ctx.fillStyle = 'white';
 	    ctx.fillRect(
-		x * SCREEN_SCALE,
-		y * SCREEN_SCALE,
-		SCREEN_SCALE,
-		SCREEN_SCALE
+		x * this.scale,
+		y * this.scale,
+		this.scale,
+		this.scale
 	    );
 	} else {
 	    ctx.fillStyle = 'black';
 	    ctx.fillRect(
-		x * SCREEN_SCALE,
-		y * SCREEN_SCALE,
-		SCREEN_SCALE,
-		SCREEN_SCALE,
+		x * this.scale,
+		y * this.scale,
+		this.scale,
+		this.scale,
 	    );
 	}
 
