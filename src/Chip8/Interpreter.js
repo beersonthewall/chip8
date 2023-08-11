@@ -19,6 +19,7 @@ export default class Interpreter {
 	this.input = new Input();
 	this.screen = this._screen();
 	this.scale = 1;
+	this.waitingForKeyPress = false;
     }
 
     _screen() {
@@ -57,6 +58,11 @@ export default class Interpreter {
 	ctx.fillRect(0, 0, width, height);
     }
 
+    _storeKey(opcode, key) {
+	let x = (opcode >> 8) & 0xF;
+	this.registers[x] = key;
+    }
+
     /**
        Ticks the Chip8 interpreter forward a single instruction.
 
@@ -65,6 +71,16 @@ export default class Interpreter {
     tick(ctx) {
 	if(this.pc >= CHIP8_MEM_SZ) {
 	    throw new Error("PC out of bounds");
+	}
+
+	if(this.waitingForKeyPress && !this.input.pollKey()) {
+	    return;
+	} else if(this.waitingForKeyPress && this.input.pollKey()) {
+	    // dec pc to retrieve wait key instruction
+	    this.pc -= 2;
+	    let op = this.readOpcode();
+	    this._storeKey(op, this.input.key());
+	    this.waitingForKeyPress = false;
 	}
 
 	const op = this.readOpcode();
@@ -248,7 +264,12 @@ export default class Interpreter {
 	    if(lower === 0x07) {
 		this.registers[x] = this.delay_timer;
 	    } else if(lower === 0x0A) {
-		// TODO: block for key press
+		// FX0A: block for key press
+		if(this.input.pollKey()) {
+		    this._storeKey(op, this.input.key());
+		} else {
+		    this.waitingForKeyPress = true;
+		}
 	    } else if(lower === 0x15) {
 		this.delay_timer = this.registers[x];
 	    } else if(lower === 0x18) {
@@ -321,8 +342,28 @@ export default class Interpreter {
     }
 }
 
+const keys = ['1', '2', '3', 'q', 'w', 'e', 'a', 's', 'd', 'z', 'x', 'c'];
+
 class Input {
     constructor() {
-	this.keys = new Array(0xF);
+	this.keyPressed = undefined;
+	document.addEventListener('keydown', (e) => {
+	    let index = keys.indexOf(e.key);
+	    if(index > -1)
+		this.keyPressed = index;
+	});
+	document.addEventListener('keyup', (e) => {
+	    this.keyPressed = undefined;
+	});
+    }
+
+    key() {
+	let key = this.keyPressed;
+	this.keyPressed = undefined;
+	return key;
+    }
+
+    pollKey() {
+	return this.keyPressed;
     }
 }
