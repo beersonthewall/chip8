@@ -1,30 +1,70 @@
 const CHIP8_MEM_SZ = 4 * 1024;
+const STACK_SZ = 16;
+const SCREEN_HEIGHT = 32;
+const SCREEN_WIDTH = 64;
+const SCREEN_SCALE = 10;
 
 export default class Interpreter {
     constructor() {
 	this.memory = new Uint8Array(CHIP8_MEM_SZ);
+	// Store the stack separately to avoid collision issues.
+	// unclear if there's a standard memory map that programs
+	// would know to avoid overwriting. Perhaps the 'low memory'
+	// below 0x200?
+	this.stack = new Uint8Array(STACK_SZ);
 	this.registers = new Uint8Array(16);
+	this.pc = 0x200;
+	this.sp = 0;
+	this.delay_timer = 0;
+	this.sound_timer = 0;
+	this.input = new Input();
+	this.screen = this._screen();
+    }
+
+    _screen() {
+	let screen = [];
+	for(let i = 0; i < SCREEN_WIDTH; i++) {
+	    screen.push([]);
+	    for(let j = 0; j < SCREEN_HEIGHT; j++) {
+		screen[i].push(0);
+	    }
+	}
+	return screen;
+    }
+
+    loadProgram(bytes) {
+	if(bytes.length < CHIP8_MEM_SZ - 0x200) {
+	    for(let i = 0; i < bytes.length; i++) {
+		this.memory[i + 0x200] = bytes[i];
+	    }
+	}
+	this.pc = 0x200;
+    }
+
+    reset(ctx) {
+	this.memory = new Uint8Array(CHIP8_MEM_SZ);
 	this.pc = 0;
 	this.sp = 0;
+	this.I = 0;
+	ctx.fillStyle = 'black';
+	ctx.fillRect(0, 0, 500, 500);
     }
 
     /**
-      Ticks the Chip8 interpreter forward a single instruction.
+       Ticks the Chip8 interpreter forward a single instruction.
+
+       ctx - CanvasRenderingContext2D, used for drawing to the html canvas
      */
     tick(ctx) {
-	let rgb = 'rgb('+
-	    Math.floor(Math.random()*256)+','+
-	    Math.floor(Math.random()*256)+','+
-	    Math.floor(Math.random()*256)+')';
-	ctx.fillStyle = rgb;
-	ctx.fillRect(0, 0, 500, 500);
 	if(this.pc >= CHIP8_MEM_SZ) {
 	    throw new Error("PC out of bounds");
 	}
 
 	const op = this.readOpcode();
+	console.log(op);
 	const upperNibble = (op >> 12) & 0xf;
-	if(upperNibble === 0) {
+	switch(upperNibble) {
+	case 0x0: {
 	    if(op === 0x00E0) {
 		// 00E0: Clear display
 		const h = ctx.canvas.height;
@@ -32,44 +72,233 @@ export default class Interpreter {
 		ctx.clearRect(0, 0, h, w);
 	    } else if(op === 0x00EE) {
 		// 00EE: return from subroutine
+		this.sp -= 1;
+		if(this.sp < 0 || this.sp > STACK_SZ) {
+		    throw new Error("Stack overflow/underflow");
+		}
+		this.pc = this.stack[this.sp];
 	    } else {
 		// 0NNN: Call machine code routine
+		this.stack[this.sp] = this.pc;
+		this.sp += 1;
+		this.pc = op & 0xFFF;
 	    }
-	} else if(upperNibble === 1) {
+	    break;
+	}
+	case 0x1:
 	    // 1NNN: goto address NNN
-	} else if(upperNibble === 2) {
+	    this.pc = op & 0xFFF;
+	    break;
+	case 0x2:
 	    // 2NNN: call subroutine at NNN
-	} else if(upperNibble === 3) {
+	    this.stack[this.sp] = this.pc;
+	    this.sp += 1;
+	    this.pc = op & 0xFFF;
+	    break;
+	case 0x3: {
+	    // 3XNN: skip next instruction if eq
+	    let reg_offset = (op >> 8) & 0xF;
+	    let nn = op & 0xFF;
+	    if(this.registers[reg_offset] === nn){
+		this.pc += 2;
+	    }
+	    break;
+	}
+	case 0x4: {
+	    // 4XNN: skip next instruction if not eq
+	    let reg_offset = (op >> 8) & 0xF;
+	    let nn = op & 0xFF;
+	    if(this.registers[reg_offset] !== nn){
+		this.pc += 2;
+	    }
+	    break;
+	}
+	case 0x5: {
+	    // 5XY0: skip next instruction if reg x == reg y
+	    let x = (op >> 8) & 0xF;
+	    let y = (op >> 4) & 0xF;
+	    if(this.registers[x] === this.registers[y]) {
+		this.pc += 2;
+	    }
+	}
+	case 0x6: {
+	    // 6XNN: set Vx = NN
+	    let x = (op >> 8) & 0xF;
+	    let nn = op & 0xFF;
+	    this.registers[x] = op;
+	    break;
+	}
+	case 0x7: {
+	    // 7XNN: Vx += NN
+	    let x = (op >> 8) & 0xF;
+	    let nn = op & 0xFF;
+	    this.registers[x] += nn;
+	    break;
+	}
+	case 0x8: {
+	    let lsn = op & 0xF;
+	    let x = (op >> 8) & 0xF;
+	    let y = (op >> 4) & 0xF;
+	    if(lsn === 0) {
+		// 8XY0: assign Vx = Vy
+		this.registers[x] = this.registers[y];
+	    } else if(lsn === 1) {
+		// 8XY1: Vx |= Vy
+		this.registers[x] |= this.registers[y];
+	    } else if(lsn === 2) {
+		// 8XY2
+		this.registers[x] &= this.registers[y];
+	    } else if(lsn === 3) {
+		// 8XY3
+		this.registers[x] ^= this.registers[y];
+	    } else if(lsn === 4) {
+		// 8XY4
+		if(255 - this.registers[y] < x) {
+		    this.registers[0xF] = 1;
+		} else {
+		    this.registers[0xF] = 0;
+		}
+		this.registers[x] += this.registers[y];
+	    } else if(lsn === 5) {
+		// 8XY5
+		this.registers[x] -= this.registers[y];
+	    } else if(lsn === 6) {
+		// 8XY6
+		this.registers[0xF] = this.registers[x] & 1;
+		this.registers[x] >>= 1;
+	    } else if(lsn === 7) {
+		// 8XY7
+		this.registers[x] = this.registers[y] - this.registers[x];
+	    } else if(lsn === 0xE) {
+		// 8XYE
+		this.registers[x] <<= 1
+	    }
+	    break;
+	}
+	case 0x9: {
+	    let lsn = op & 0xF;
+	    console.assert(0, lsn);
 
-	} else if(upperNibble === 4) {
+	    let x = (op >> 8) & 0xF;
+	    let y = (op >> 4) & 0xF;
+	    if(this.registers[x] !== this.registers[y]) {
+		this.pc += 2;
+	    }
+	    break;
+	}
+	case 0xA: {
+	    // ANNN: set I = NNN
+	    let addr = op & 0xFFF;
+	    this.I = addr;
+	    break;
+	}
+	case 0xB: {
+	    // BNNN: jump to V0 + NNN
+	    let addr = op & 0xFFF;
+	    this.pc = this.registers[0] + addr;
+	    break;
+	}
+	case 0xC: {
+	    //CXNN: Vx = nn & rand()
+	    let nn = op & 0xFF;
+	    let x = (op >> 8) & 0xF;
+	    this.registers[x] = Math.floor(Math.random() * 255) & nn;
+	    break;
+	}
+	case 0xD: {
+	    // DXYN: draw(Vx, Vy, N)
+	    let addr = this.I;
+	    let height = op & 0xF;
+	    let start_x = this.registers[(op >> 8) & 0xF];
+	    let start_y = this.registers[(op >> 4) & 0xF];
+	    this.registers[0xF] = 0;
 
-	} else if(upperNibble === 5) {
-
-	} else if(upperNibble === 6) {
-
-	} else if(upperNibble === 7) {
-
-	} else if(upperNibble === 8) {
-
-	} else if(upperNibble === 9) {
-
-	} else if(upperNibble === 0xA) {
-
-	} else if(upperNibble === 0xB) {
-
-	} else if(upperNibble === 0xC) {
-
-	} else if(upperNibble === 0xD) {
-
-	} else if(upperNibble === 0xE) {
-
-	} else if(upperNibble === 0xF) {
-
+	    for(let i = 0; i < height; i++) {
+		let line = this.memory[addr + i];
+		for(let j = 0; j < 8; j++) {
+		    let value = line & (1 << (7 - j)) ? 1 : 0;
+		    if(this._drawPixel(start_x + j, start_y + i, value, ctx)) {
+			this.registers[0xF] = 1;
+		    }
+		}
+	    }
+	    break;
+	}
+	case 0xE: {
+	    let lower = op & 0xFF;
+	    if(lower === 0x9E) {
+		// EX9E
+		
+	    } else if(lower === 0xA1) {
+		// EXA1
+		
+	    }
+	    break;
+	}
+	case 0xF: {
+	    let lower = op & 0xFF;
+	    let x = (op >> 8) & 0xF;
+	    if(lower === 0x07) {
+		this.registers[x] = this.delay_timer;
+	    } else if(lower === 0x0A) {
+		// TODO: block for key press
+	    } else if(lower === 0x15) {
+		this.delay_timer = this.registers[x];
+	    } else if(lower === 0x18) {
+		this.sound_timer = this.registers[x];
+	    } else if(lower === 0x1E) {
+		this.i += this.registers[x];
+	    } else if(lower === 0x29) {
+		
+	    } else if(lower === 0x33) {
+		
+	    } else if(lower === 0x55) {
+		// FX55: dump registers to memory
+		let addr = this.I;
+		for(let i = 0; i < 0xF; i++) {
+		    this.memory[addr] = this.registers[i];
+		    addr += 1;
+		}		
+	    } else if(lower === 0x65) {
+		// FX65: load registers from memory
+		let addr = this.I;
+		for(let i = 0; i < 0xF; i++) {
+		    this.registers[i] = this.memory[addr];
+		    addr += 1;
+		}
+	    }
+	    break;
+	}
 	}
     }
 
+    _drawPixel(x, y, value, ctx) {
+	const collision = this.screen[y][x] & value;
+	this.screen[y][x] ^= value;
+
+	if(this.screen[y][x]) {
+	    ctx.fillStyle = 'white';
+	    ctx.fillRect(
+		x * SCREEN_SCALE,
+		y * SCREEN_SCALE,
+		SCREEN_SCALE,
+		SCREEN_SCALE
+	    );
+	} else {
+	    ctx.fillStyle = 'black';
+	    ctx.fillRect(
+		x * SCREEN_SCALE,
+		y * SCREEN_SCALE,
+		SCREEN_SCALE,
+		SCREEN_SCALE,
+	    );
+	}
+
+	return collision;
+    }
+
     /*
-      Reads an opcode from memory at the currect program counter location.
+      Reads an opcode from memory at the current program counter location.
       Chip8 instructions are two bytes long so we increment the program
       counter by two.
      */
@@ -82,5 +311,11 @@ export default class Interpreter {
 	const lsb = this.memory[this.pc + 1];
 	this.pc += 2;
 	return (msb << 8) | lsb;
+    }
+}
+
+class Input {
+    constructor() {
+	this.keys = new Array(0xF);
     }
 }

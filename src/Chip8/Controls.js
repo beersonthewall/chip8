@@ -1,10 +1,13 @@
 import React from 'react';
 
-export default function Controls() {
+export default function Controls({ loadProgram, reset }) {
     return (
 	<>
-	    <button>Load Program</button>
-	    <button>Reset Interpreter</button>
+	    <button onClick={reset}>Reset Interpreter</button>
+	    <form onSubmit={loadProgram}>
+		<input type="file" name="file" />
+		<input type="submit" value="Run Program" />
+	    </form>
 	</>
     );
 }
