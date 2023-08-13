@@ -368,6 +368,7 @@ export default class Interpreter {
 		this.I += this.registers[x];
 	    } else if(lower === 0x29) {
 		// FX29: MEM
+		this.I = this.registers[x] * 5;
 	    } else if(lower === 0x33) {
 		// FX33: BCD - binary coded decimal
 		if(this.I > 4093) {
