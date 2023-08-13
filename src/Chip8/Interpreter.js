@@ -94,16 +94,16 @@ export default class Interpreter {
     pressKey(key) {
 	if(key in this.keymap) {
 	    this.keymap[key] = true;
-	    if(this.waiting) {
-		this.registers[this.waiting] = keyIndex[key];
-		this.waiting = null;
-	    }
 	}
     }
 
     liftKey(key) {
 	if(key in this.keymap) {
 	    this.keymap[key] = false;
+	    if(this.waiting) {
+		this.registers[this.waiting] = keyIndex[key];
+		this.waiting = null;
+	    }
 	}
     }
 
