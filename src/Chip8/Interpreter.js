@@ -170,7 +170,8 @@ export default class Interpreter {
 		// 00E0: Clear display
 		const h = ctx.canvas.height;
 		const w = ctx.canvas.width;
-		ctx.clearRect(0, 0, h, w);
+		ctx.clearRect(0, 0, h * this.scale, w * this.scale);
+		this.screen = this._screen();
 	    } else if(op === 0x00EE) {
 		// 00EE: return from subroutine
 		this.sp -= 1;
