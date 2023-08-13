@@ -23,6 +23,9 @@ export default function Game({ height, width }) {
     function loadProgram(e) {
 	e.preventDefault();
 	let file = e.target.file.files[0];
+	if(!file){
+	    return;
+	}
 	let reader = new FileReader();
 	reader.onload = () => {
 	    const ctx = canvasRef.current?.getContext("2d");
