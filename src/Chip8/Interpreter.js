@@ -84,7 +84,6 @@ export default class Interpreter {
     }
 
     reset(ctx) {
-	let canvas = ctx.canvas;
 	let height = ctx.canvas.height;
 	let width = ctx.canvas.width;
 	let y_scale = Math.floor(height / SCREEN_HEIGHT);
@@ -249,7 +248,6 @@ export default class Interpreter {
 	case 0x9: {
 	    // 9XY0
 	    let lsn = op & 0xF;
-	    console.assert(0, lsn);
 
 	    let x = (op >> 8) & 0xF;
 	    let y = (op >> 4) & 0xF;
