@@ -121,9 +121,7 @@ export default class Interpreter {
 	this.pc = 0x200;
 	this.sp = 0;
 	this.I = 0;
-	ctx.fillStyle = 'black';
-	ctx.fillRect(0, 0, width, height);
-	this.debug_line = "";
+	ctx.clearRect(0, 0, width * this.scale, height * this.scale);
 	this.keymap = {
 	    '1': false,
 	    '2': false,
