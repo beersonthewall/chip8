@@ -397,6 +397,7 @@ export default class Interpreter {
 		for(let i = 0; i <= x; i++) {
 		    this.memory[this.I + i] = this.registers[i];
 		}
+		this.I += (x + 1);
 	    } else if(lower === 0x65) {
 		// FX65: load registers from memory
 		if(this.I > 4095 - x) {
@@ -407,6 +408,7 @@ export default class Interpreter {
 		for(let i = 0; i <= x; i++) {
 		    this.registers[i] = this.memory[this.I + i];
 		}
+		this.I += (x + 1);
 	    }
 	    break;
 	}
