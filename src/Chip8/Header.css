@@ -1,8 +1,25 @@
-header {
-    width: 100%;
+.linkIcon {
+    height: 1.25em;
+    width: 1.25em;
+    margin: .25em;
 }
 
 .navBar {
     display: flex;
     flex-direction: row;
+    margin: auto;
+}
+
+.navLinks {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    margin: auto;
+}
+
+.navTitle {
+    display: flex;
+    flex-direction: row;
+    justify-contents: flex-start;
+    margin: auto;
 }
