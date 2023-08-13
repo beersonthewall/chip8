@@ -2,7 +2,7 @@ const CHIP8_MEM_SZ = 4 * 1024;
 const STACK_SZ = 16;
 const SCREEN_HEIGHT = 32;
 const SCREEN_WIDTH = 64;
-const DEBUG = false;
+const DEBUG_TOGGLE = true;
 
 const keyIndex = {
     '1': 0,
@@ -143,11 +143,6 @@ export default class Interpreter {
 	this.waiting = null;
     }
 
-    _storeKey(opcode, key) {
-	let x = (opcode >> 8) & 0xF;
-	this.registers[x] = key;
-    }
-
     /**
        Ticks the Chip8 interpreter forward a single instruction.
 
@@ -180,36 +175,38 @@ export default class Interpreter {
 		this.pc = this.stack[this.sp];
 	    } else {
 		// 0NNN: Call machine code routine
-		this.stack[this.sp] = this.pc;
-		this.sp += 1;
-		this.pc = op & 0xFFF;
+		//this.stack[this.sp] = this.pc;
+		//this.sp += 1;
+		//this.pc = op & 0xFFF;
 	    }
 	    break;
 	}
-	case 0x1:
+	case 0x1: {
 	    // 1NNN: goto address NNN
 	    this.pc = op & 0xFFF;
 	    break;
-	case 0x2:
+	}
+	case 0x2: {
 	    // 2NNN: call subroutine at NNN
 	    this.stack[this.sp] = this.pc;
 	    this.sp += 1;
 	    this.pc = op & 0xFFF;
 	    break;
+	}
 	case 0x3: {
 	    // 3XNN: skip next instruction if eq
-	    let reg_offset = (op >> 8) & 0xF;
+	    let x = (op >> 8) & 0xF;
 	    let nn = op & 0xFF;
-	    if(this.registers[reg_offset] === nn){
+	    if(this.registers[x] === nn){
 		this.pc += 2;
 	    }
 	    break;
 	}
 	case 0x4: {
 	    // 4XNN: skip next instruction if not eq
-	    let reg_offset = (op >> 8) & 0xF;
+	    let x = (op >> 8) & 0xF;
 	    let nn = op & 0xFF;
-	    if(this.registers[reg_offset] !== nn){
+	    if(this.registers[x] !== nn){
 		this.pc += 2;
 	    }
 	    break;
@@ -221,6 +218,7 @@ export default class Interpreter {
 	    if(this.registers[x] === this.registers[y]) {
 		this.pc += 2;
 	    }
+	    break;
 	}
 	case 0x6: {
 	    // 6XNN: set Vx = NN
@@ -233,7 +231,11 @@ export default class Interpreter {
 	    // 7XNN: Vx += NN
 	    let x = (op >> 8) & 0xF;
 	    let nn = op & 0xFF;
-	    this.registers[x] += nn;
+	    let tmp = this.registers[x] + nn;
+	    if(tmp > 255) {
+		tmp -= 256
+	    }
+	    this.registers[x] = tmp;
 	    break;
 	}
 	case 0x8: {
@@ -318,12 +320,13 @@ export default class Interpreter {
 	    let start_x = this.registers[(op >> 8) & 0xF];
 	    let start_y = this.registers[(op >> 4) & 0xF];
 	    this.registers[0xF] = 0;
-
 	    for(let i = 0; i < height; i++) {
 		let line = this.memory[addr + i];
 		for(let j = 0; j < 8; j++) {
 		    let value = line & (1 << (7 - j)) ? 1 : 0;
-		    if(this._drawPixel(start_x + j, start_y + i, value, ctx)) {
+		    let x = (start_x + j) % SCREEN_WIDTH;
+		    let y = (start_y + i) % SCREEN_HEIGHT;
+		    if(this._drawPixel(x, y, value, ctx)) {
 			this.registers[0xF] = 1;
 		    }
 		}
@@ -420,28 +423,28 @@ export default class Interpreter {
     }
 
     _logDebugMsg(op) {
-	if(DEBUG) {
+	if(DEBUG_TOGGLE) {
+	    if(op === 0xee) return;
+	    if((op >> 12) === 0xe) return;
 	    let registers = "";
 	    for(let i = 0; i <= 0xF; i++) {
 		registers += `V${i.toString(16)}: ${this.registers[i].toString(16)} `
 	    }
-	    let key = this.input.pollKey() ? this.input.pollKey() : "n/a";
-	    console.log(`0x${op.toString(16)} pc: ${this.pc.toString(16)}, sp: ${this.sp.toString(16)} I: ${this.I.toString(16)}, ${registers}, kp: ${key}`);
-	    this.debug_line = "";
+	    console.log(`0x${op.toString(16)} pc: ${this.pc.toString(16)}, sp: ${this.sp.toString(16)} I: ${this.I.toString(16)}, ${registers}`);
 	}
     }
 
     _dbg(msg) {
-	if(DEBUG) {
+	if(DEBUG_TOGGLE) {
 	    this.debug_line += msg;
 	}
     }
 
     _drawPixel(x, y, value, ctx) {
-	const collision = this.screen[y][x] & value;
-	this.screen[y][x] ^= value;
+	const collision = this.screen[x][y] & value;
+	this.screen[x][y] ^= value;
 
-	if(this.screen[y][x]) {
+	if(this.screen[x][y]) {
 	    ctx.fillStyle = 'white';
 	    ctx.fillRect(
 		x * this.scale,
@@ -455,7 +458,7 @@ export default class Interpreter {
 		x * this.scale,
 		y * this.scale,
 		this.scale,
-		this.scale,
+		this.scale
 	    );
 	}
 
