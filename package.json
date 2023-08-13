@@ -2,7 +2,7 @@
     "name": "chip8",
     "version": "0.1.0",
     "private": true,
-    "homepage": "www.beersonthewall.com/chip8",
+    "homepage": "https://www.beersonthewall.com/chip8",
     "dependencies": {
         "@testing-library/jest-dom": "^5.17.0",
         "@testing-library/react": "^13.4.0",
