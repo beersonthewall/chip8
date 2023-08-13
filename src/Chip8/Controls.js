@@ -6,7 +6,7 @@ export default function Controls({ loadProgram, reset }) {
     return (
 	<form onSubmit={loadProgram} className="ctrlContainer">
 	    <button className="ctrl" onClick={reset}>Reset</button>
-	    <label className="romUploadLbl ctrl" for="romUpload" >
+	    <label className="romUploadLbl ctrl" htmlFor="romUpload" >
 		<img src={FolderIcon} id="folderImg" />
 		Load ROM
 	    </label>

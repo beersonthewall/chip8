@@ -2,7 +2,7 @@ const CHIP8_MEM_SZ = 4 * 1024;
 const STACK_SZ = 16;
 const SCREEN_HEIGHT = 32;
 const SCREEN_WIDTH = 64;
-const DEBUG_TOGGLE = true;
+const DEBUG_TOGGLE = false;
 
 const inverseKeys = {
     1: '1', 2: '2', 3: '3', 0xc: '4',
