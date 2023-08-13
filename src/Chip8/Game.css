@@ -3,6 +3,6 @@
     background-color: black;
     margin-left: auto;
     margin-right: auto;
-    border: .25em solid #805284;
+    border: .25em solid var(--clr-accent);
     margin-bottom: .5em;
 }

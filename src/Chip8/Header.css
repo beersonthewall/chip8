@@ -1,6 +1,6 @@
 .linkIcon {
-    height: 1.25em;
-    width: 1.25em;
+    height: var(--icon-height);
+    width: var(--icon-width);
     margin: .25em;
 }
 

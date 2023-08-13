@@ -1,0 +1,27 @@
+.ctrlContainer {
+    display: flex;
+    justify-content: center;
+    gap: 1.5em;
+}
+
+.ctrl {
+    background-color: var(--clr-background);
+    border: var(--clr-accent) 0.125em solid;
+    border-radius: .5em;
+    padding: .125em;
+}
+
+.ctrl:hover {
+    cursor: pointer;
+    background-color: var(--clr-secondary);
+    transform: translate(0, -.025em);
+}
+
+#folderImg {
+    height: .75em;
+    width: .75m;
+}
+
+#romUpload {
+    display: none;
+}
