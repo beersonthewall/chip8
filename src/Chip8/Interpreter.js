@@ -118,7 +118,7 @@ export default class Interpreter {
 	this.memory = new Uint8Array(CHIP8_MEM_SZ);
 	this.registers = new Uint8Array(16);
 	this.screen = this._screen();
-	this.pc = 0;
+	this.pc = 0x200;
 	this.sp = 0;
 	this.I = 0;
 	ctx.fillStyle = 'black';
