@@ -228,7 +228,7 @@ export default class Interpreter {
 	    // 6XNN: set Vx = NN
 	    let x = (op >> 8) & 0xF;
 	    let nn = op & 0xFF;
-	    this.registers[x] = op;
+	    this.registers[x] = nn;
 	    break;
 	}
 	case 0x7: {
