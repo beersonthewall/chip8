@@ -4,23 +4,11 @@ const SCREEN_HEIGHT = 32;
 const SCREEN_WIDTH = 64;
 const DEBUG_TOGGLE = true;
 
-const keyIndex = {
-    '1': 0,
-    '2': 1,
-    '3': 2,
-    '4': 3,
-    'q': 4,
-    'w': 5,
-    'e': 6,
-    'r': 7,
-    'a': 8,
-    's': 9,
-    'd': 10,
-    'f': 11,
-    'z': 12,
-    'x': 13,
-    'c': 14,
-    'v': 15,
+const inverseKeys = {
+    1: '1', 2: '2', 3: '3', 0xc: '4',
+    4: 'q', 5: 'w', 6: 'e', 0xd: 'r',
+    7: 'a', 8: 's', 9: 'd', 0xe: 'f',
+    0xa: 'z', 0: 'x', 0xb: 'c', 0xf: 'v'
 };
 
 export default class Interpreter {
@@ -41,22 +29,10 @@ export default class Interpreter {
 	this.hlt = false;
 	this.I = 0;
 	this.keymap = {
-	    '1': false,
-	    '2': false,
-	    '3': false,
-	    '4': false,
-	    'q': false,
-	    'w': false,
-	    'e': false,
-	    'r': false,
-	    'a': false,
-	    's': false,
-	    'd': false,
-	    'f': false,
-	    'z': false,
-	    'x': false,
-	    'c': false,
-	    'v': false,
+	    '1': { p:false, v:1}, '2': {p:false, v:2}, '3': {p:false, v:3}, '4': {p:false, v:0xc},
+	    'q': { p:false, v:4}, 'w': {p:false, v:5}, 'e': {p:false, v:6}, 'r': {p:false, v:0xd},
+	    'a': { p:false, v:7}, 's': {p:false, v:8}, 'd': {p:false, v:9}, 'f': {p:false, v:0xe},
+	    'z': { p:false, v:0xa}, 'x': {p:false, v:0}, 'c': {p:false, v:0xb}, 'v': {p:false, v:0xf},
 	};
 	this.waiting = null;
     }
@@ -93,15 +69,15 @@ export default class Interpreter {
 
     pressKey(key) {
 	if(key in this.keymap) {
-	    this.keymap[key] = true;
+	    this.keymap[key].p = true;
 	}
     }
 
     liftKey(key) {
 	if(key in this.keymap) {
-	    this.keymap[key] = false;
+	    this.keymap[key].p = false;
 	    if(this.waiting) {
-		this.registers[this.waiting] = keyIndex[key];
+		this.registers[this.waiting] = this.keymap[key].v;
 		this.waiting = null;
 	    }
 	}
@@ -123,22 +99,10 @@ export default class Interpreter {
 	this.I = 0;
 	ctx.clearRect(0, 0, width * this.scale, height * this.scale);
 	this.keymap = {
-	    '1': false,
-	    '2': false,
-	    '3': false,
-	    '4': false,
-	    'q': false,
-	    'w': false,
-	    'e': false,
-	    'r': false,
-	    'a': false,
-	    's': false,
-	    'd': false,
-	    'f': false,
-	    'z': false,
-	    'x': false,
-	    'c': false,
-	    'v': false,
+	    '1': { p:false, v:1}, '2': {p:false, v:2}, '3': {p:false, v:3}, '4': {p:false, v:0xc},
+	    'q': { p:false, v:4}, 'w': {p:false, v:5}, 'e': {p:false, v:6}, 'r': {p:false, v:0xd},
+	    'a': { p:false, v:7}, 's': {p:false, v:8}, 'd': {p:false, v:9}, 'f': {p:false, v:0xe},
+	    'z': { p:false, v:0xa}, 'x': {p:false, v:0}, 'c': {p:false, v:0xb}, 'v': {p:false, v:0xf},
 	};
 	this.waiting = null;
     }
@@ -338,13 +302,13 @@ export default class Interpreter {
 	    if(lower === 0x9E) {
 		// EX9E: skip next instruction if key in Vx is pressed
 		let x = (op >> 8) & 0xF;
-		if(this.keymap[this.registers[x]]) {
+		if(this.keymap[inverseKeys[this.registers[x]]].p) {
 		    this.pc += 2;
 		}
 	    } else if(lower === 0xA1) {
 		// EXA1: skip next instruction if key in Vx is not pressed
 		let x = (op >> 8) & 0xF;
-		if(!this.keymap[this.registers[x]]) {
+		if(!this.keymap[inverseKeys[this.registers[x]]].p) {
 		    this.pc += 2;
 		}
 	    }
