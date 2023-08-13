@@ -247,8 +247,6 @@ export default class Interpreter {
 	}
 	case 0x9: {
 	    // 9XY0
-	    let lsn = op & 0xF;
-
 	    let x = (op >> 8) & 0xF;
 	    let y = (op >> 4) & 0xF;
 	    if(this.registers[x] !== this.registers[y]) {
